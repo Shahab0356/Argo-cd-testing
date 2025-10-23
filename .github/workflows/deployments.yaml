@@ -13,7 +13,7 @@ env:
 
 permissions:
   contents: read
-  id-token: write   # if you later choose OIDC-based auth
+  id-token: write   # if ever you later choose OIDC-based auth
   packages: write
 
 jobs:

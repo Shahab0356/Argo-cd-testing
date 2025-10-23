@@ -6,7 +6,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  AWS_ACCOUNT_ID: 052988671062
+  AWS_ACCOUNT_ID: 866848376367
   ECR_REPOSITORY: eks-demo-app
   EKS_CLUSTER_NAME: shahab-eks-cluster
   K8S_NAMESPACE: eks-demo-app
@@ -24,7 +24,8 @@ jobs:
     name: Test, Build & Push
     runs-on: ubuntu-latest
     outputs:
-      IMAGE_TAG: ${{ steps.image-tag.outputs.IMAGE_TAG }}
+      IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,10 +41,8 @@ jobs:
           pip install -r app/requirements.txt
           pip install pytest
 
-      - name: Run tests (ensure app module is importable)
-        run: |
-          export PYTHONPATH="$PYTHONPATH:$(pwd)"
-          pytest -q
+      - name: Run tests
+        run: pytest -q
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -52,39 +51,33 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Ensure ECR repository exists
-        run: |
-          aws ecr describe-repositories --repository-names "${{ env.ECR_REPOSITORY }}" >/dev/null 2>&1 || \
-            aws ecr create-repository --repository-name "${{ env.ECR_REPOSITORY }}" --region "${{ env.AWS_REGION }}"
-
-      - name: Determine image tag (short SHA)
+      - name: Determine image tag
         id: image-tag
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
-          echo "IMAGE_TAG=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
 
-      - name: Build and push image (tagged with short SHA)
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKERFILE_PATH }}
           push: true
-          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ steps.image-tag.outputs.IMAGE_TAG }}
-          cache-from: type=registry,ref=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:cache
-          cache-to: type=registry,ref=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:cache,mode=max
+          tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ steps.image-tag.outputs.tag }}
 
   deploy:
-    name: Deploy to EKS (Rolling update, with rollback on failure)
+    name: Deploy to EKS (Rolling Update)
     runs-on: ubuntu-latest
     needs: test-and-build
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (deploy)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -95,34 +88,12 @@ jobs:
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
-      - name: Perform rolling update and rollback on failure
-        env:
-          IMAGE_TAG: ${{ needs.test-and-build.outputs.IMAGE_TAG }}
-          IMAGE_FULL: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ needs.test-and-build.outputs.IMAGE_TAG }}
+      - name: Deploy to EKS
         run: |
-          echo "Deploying image: ${IMAGE_FULL}"
+          IMAGE_TAG="${{ needs.test-and-build.outputs.IMAGE_TAG }}"
+          IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}"
+          echo "Deploying image: $IMAGE"
 
-          # set image (rolling update)
-          kubectl -n "${{ env.K8S_NAMESPACE }}" set image deployment/${{ env.DEPLOYMENT_NAME }} ${ { env.CONTAINER_NAME } }=${IMAGE_FULL} --record 2>&1 || true
-
-          # annotate deployment with tag for traceability
-          kubectl -n "${{ env.K8S_NAMESPACE }}" annotate deployment/${{ env.DEPLOYMENT_NAME }} DEPLOYMENT_TAG="${IMAGE_TAG}" --overwrite || true
-
-          # wait for rollout; if it fails, rollback and exit non-zero
-          if ! kubectl -n "${{ env.K8S_NAMESPACE }}" rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s; then
-            echo "Rollout failed — performing rollback..."
-            kubectl -n "${{ env.K8S_NAMESPACE }}" rollout undo deployment/${{ env.DEPLOYMENT_NAME }}
-            echo "Rollback completed. Failing the job so you can investigate."
-            exit 1
-          fi
-
-      - name: Show deployment & pods
-        run: |
-          kubectl -n ${{ env.K8S_NAMESPACE }} get deployment ${{ env.DEPLOYMENT_NAME }} -o wide
-          kubectl -n ${{ env.K8S_NAMESPACE }} get pods -l app=eks-demo-app -o wide
-          kubectl -n ${{ env.K8S_NAMESPACE }} get svc -o wide
+          kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/${{ env.DEPLOYMENT_NAME }} ${{ env.CONTAINER_NAME }}=$IMAGE --record
+          kubectl -n ${{ env.K8S_NAMESPACE }} annotate deployment ${{ env.DEPLOYMENT_NAME }} DEPLOYMENT_TAG="${IMAGE_TAG}" --overwrite
+          kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s

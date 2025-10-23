@@ -13,13 +13,16 @@ env:
 
 permissions:
   contents: read
-  id-token: write   # if ever you later choose OIDC-based auth
+  id-token: write
   packages: write
 
 jobs:
   test-and-build:
     name: Test, Build & Push
     runs-on: ubuntu-latest
+    outputs:
+      IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,25 +39,22 @@ jobs:
           pip install pytest
 
       - name: Run tests
-        run: |
-          python -m pytest -q
-        continue-on-error: false
+        run: pytest -q
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: public
 
       - name: Determine image tag
         id: image-tag
         run: |
           SHORT_SHA=${GITHUB_SHA::7}
-          echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "short=${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
@@ -64,13 +64,12 @@ jobs:
           file: docker/Dockerfile
           push: true
           tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ steps.image-tag.outputs.tag }}
-          cache-from: type=registry,ref=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:cache
-          cache-to: type=registry,ref=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:cache,mode=max
 
   deploy:
-    name: Deploy to EKS (rolling)
+    name: Deploy to EKS (Rolling Update)
     runs-on: ubuntu-latest
     needs: test-and-build
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -86,26 +85,13 @@ jobs:
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
-      - name: Set image on Deployment (rolling update)
-        env:
-          IMAGE: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ needs.test-and-build.outputs.tag || steps.image-tag.outputs.tag }}
+      - name: Set image on Deployment (rolling)
         run: |
-          IMAGE_TAG="${{ needs.test-and-build.outputs.tag || github.sha::7 }}"
-          IMAGE_FULL="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}"
-          echo "Setting image -> ${IMAGE_FULL}"
-          kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/eks-demo-app eks-demo-app=${IMAGE_FULL} --record
-          # annotate with deployment tag for traceability
+          IMAGE_TAG="${{ needs.test-and-build.outputs.IMAGE_TAG }}"
+          IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}"
+
+          echo "Deploying image: $IMAGE"
+
+          kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/eks-demo-app eks-demo-app=$IMAGE --record
           kubectl -n ${{ env.K8S_NAMESPACE }} annotate deployment eks-demo-app DEPLOYMENT_TAG="${IMAGE_TAG}" --overwrite
-          # wait for rollout
           kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/eks-demo-app --timeout=300s
-
-      - name: Get deployment, pods, services
-        run: |
-          kubectl -n ${{ env.K8S_NAMESPACE }} get deployment eks-demo-app -o wide
-          kubectl -n ${{ env.K8S_NAMESPACE }} get pods -l app=eks-demo-app
-          kubectl -n ${{ env.K8S_NAMESPACE }} get svc

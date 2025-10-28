@@ -19,7 +19,7 @@ jobs:
   test-and-build:
     name: 🧪 Test, Build & Push Docker Image
     runs-on: ubuntu-latest
-    # Remove environment: prod to use repository secrets directly
+    # Use repository secrets directly (no environment: prod)
     outputs:
       IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
 
@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies & test
+      - name: Install dependencies & run tests
         run: |
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt pytest
@@ -52,12 +52,14 @@ jobs:
           TAG="${DATE_TAG}-${SHORT_SHA}"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
-      - name: 🐳 Build and Push Docker image
+      - name: 🐳 Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKERFILE_PATH }}
           push: true
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          cache-to: type=inline
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.image-tag.outputs.tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
@@ -70,6 +72,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # Optional: AWS EKS kubeconfig (if using EKS)
+      - name: Configure AWS credentials (EKS only)
+        if: env.AWS_REGION != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsEKSRole
+          aws-region: us-east-1
+
+      - name: Update kubeconfig (EKS only)
+        if: env.AWS_REGION != ''
+        run: aws eks update-kubeconfig --region us-east-1 --name shahab-eks-cluster
 
       - name: 🧱 Ensure namespace exists
         run: |
@@ -87,7 +101,7 @@ jobs:
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s
 
-      - name: 📊 Show Deployment Info
+      - name: 📊 Show deployment info
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} get deployment ${{ env.DEPLOYMENT_NAME }} -o wide
           kubectl -n ${{ env.K8S_NAMESPACE }} get pods -o wide

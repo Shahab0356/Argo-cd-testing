@@ -19,7 +19,7 @@ jobs:
   test-and-build:
     name: 🧪 Test, Build & Push Docker Image
     runs-on: ubuntu-latest
-    environment: prod   # 👈 Use prod environment secrets (DOCKERHUB_USERNAME & DOCKERHUB_PASSWORD)
+    # Remove environment: prod to use repository secrets directly
     outputs:
       IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
 
@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies & run tests
+      - name: Install dependencies & test
         run: |
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt pytest
@@ -52,14 +52,12 @@ jobs:
           TAG="${DATE_TAG}-${SHORT_SHA}"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
-      - name: 🐳 Build & push Docker image
+      - name: 🐳 Build and Push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ env.DOCKERFILE_PATH }}
           push: true
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-          cache-to: type=inline
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.image-tag.outputs.tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
@@ -68,25 +66,12 @@ jobs:
     name: 🚀 Deploy to Kubernetes (Optional EKS)
     runs-on: ubuntu-latest
     needs: test-and-build
-    environment: prod   # same prod environment
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Optional AWS EKS credentials
-      - name: Configure AWS credentials (EKS only)
-        if: env.AWS_REGION != ''
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsEKSRole
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update kubeconfig (EKS only)
-        if: env.AWS_REGION != ''
-        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name shahab-eks-cluster
-
-      - name: 🧱 Ensure Kubernetes namespace exists
+      - name: 🧱 Ensure namespace exists
         run: |
           kubectl get ns ${{ env.K8S_NAMESPACE }} || kubectl create ns ${{ env.K8S_NAMESPACE }}
 
@@ -100,14 +85,9 @@ jobs:
 
       - name: 🔍 Verify rollout
         run: |
-          echo "Checking deployment rollout..."
-          if ! kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s; then
-            echo "❌ Deployment failed, rolling back..."
-            kubectl -n ${{ env.K8S_NAMESPACE }} rollout undo deployment/${{ env.DEPLOYMENT_NAME }}
-            exit 1
-          fi
+          kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s
 
-      - name: 📊 Display deployment info
+      - name: 📊 Show Deployment Info
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} get deployment ${{ env.DEPLOYMENT_NAME }} -o wide
           kubectl -n ${{ env.K8S_NAMESPACE }} get pods -o wide

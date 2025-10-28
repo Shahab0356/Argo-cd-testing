@@ -1,0 +1,29 @@
+# Byte-compiled / caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual envs
+venv/
+.venv/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# OS 
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Kubernetes manifests (keep them in repo), GitHub workflow (keep)
+# Docker
+docker-compose.override.yml
+
+# pytest
+.pytest_cache/

@@ -1,2 +1,5 @@
-from app.app import app
-#h
+from flask import Flask
+
+app = Flask(__name__, template_folder="templates", static_folder="static")
+
+from . import views

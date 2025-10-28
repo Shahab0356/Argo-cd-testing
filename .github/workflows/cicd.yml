@@ -1,12 +1,12 @@
-name: CI/CD — Build, Push to Docker Hub & Deploy to EKS
+name: CI/CD — Build, Push to Docker Hub & Deploy to K8s
 
 on:
   push:
     branches: [ master ]
 
 env:
-  DOCKERHUB_USERNAME: shahabkhan              # 👈 your Docker Hub username
-  IMAGE_NAME: flask-demo                      # 👈 your Docker Hub repo name
+  DOCKERHUB_USERNAME: shahabkhan
+  IMAGE_NAME: flask-demo
   K8S_NAMESPACE: eks-demo-app
   DEPLOYMENT_NAME: eks-demo-app
   CONTAINER_NAME: eks-demo-app
@@ -65,7 +65,7 @@ jobs:
             ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
 
   deploy:
-    name: 🚀 Deploy to EKS (or any K8s)
+    name: 🚀 Deploy to Kubernetes (or EKS)
     runs-on: ubuntu-latest
     needs: test-and-build
 
@@ -73,7 +73,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 🟡 Optional — if you have AWS EKS and kubeconfig setup
+      # 🟡 Optional — only for AWS EKS
       - name: Configure AWS credentials (OIDC)
         if: env.AWS_REGION != ''
         uses: aws-actions/configure-aws-credentials@v4
@@ -81,7 +81,7 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsEKSRole
           aws-region: us-east-1
 
-      - name: Update kubeconfig
+      - name: Update kubeconfig (EKS only)
         if: env.AWS_REGION != ''
         run: aws eks update-kubeconfig --region us-east-1 --name shahab-eks-cluster
 

@@ -4,14 +4,14 @@ on:
   push:
     branches: [ master ]
 
-# Non-sensitive global variables
+# Global environment variables (non-sensitive)
 env:
   IMAGE_NAME: flask-demo
   K8S_NAMESPACE: eks-demo-app
   DEPLOYMENT_NAME: eks-demo-app
   CONTAINER_NAME: eks-demo-app
   DOCKERFILE_PATH: ./docker/Dockerfile
-  AWS_REGION: us-east-1  # adjust if needed
+  AWS_REGION: us-east-1  # adjust if your EKS is in another region
 
 permissions:
   contents: read
@@ -20,6 +20,7 @@ jobs:
   test-and-build:
     name: 🧪 Test, Build & Push Docker Image
     runs-on: ubuntu-latest
+    environment: prod   # 👈 this enables access to your Environment secrets
     outputs:
       IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
 
@@ -52,7 +53,7 @@ jobs:
           TAG="${DATE_TAG}-${SHORT_SHA}"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
-      - name: 🐳 Build and push Docker image
+      - name: 🐳 Build and Push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -67,6 +68,7 @@ jobs:
   deploy:
     name: 🚀 Deploy to EKS / Kubernetes
     runs-on: ubuntu-latest
+    environment: prod   # 👈 add this too to access AWS & Docker secrets
     needs: test-and-build
 
     steps:
@@ -99,7 +101,7 @@ jobs:
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s
 
-      - name: 📊 Show deployment info
+      - name: 📊 Show Deployment Info
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} get deployment ${{ env.DEPLOYMENT_NAME }} -o wide
           kubectl -n ${{ env.K8S_NAMESPACE }} get pods -o wide

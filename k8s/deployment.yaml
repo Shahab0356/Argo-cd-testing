@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:latest
+          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:latest # Placeholder, will be replaced by workflow
           ports:
             - containerPort: 5000
           envFrom:
@@ -44,3 +44,5 @@ spec:
               port: 5000
             initialDelaySeconds: 10
             periodSeconds: 10
+      imagePullSecrets:
+        - name: regcred # Only needed if private ECR

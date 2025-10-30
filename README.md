@@ -180,4 +180,23 @@ ecr image : eks-demo-app:latest
 <your-alb-role> with the name of the IAM role you created (e.g. ShahabALBRole)
 create new eks
 
-eksctl create cluster --name eks-demo-app-cluster --region us-east-1 --nodegroup-name eks-demo-app-nodes --nodes 3 --node-type t3.medium --zones "us-east-1a" --with-oidc --managed --ssh-access --ssh-public-key kube-demo --tags "project=eks-demo-app,owner=shahab" --version 1.32
+
+
+eksctl create nodegroup \
+    --cluster flask-eks-test-1 \
+    --region us-east-1 \
+    --name eksdemo1-ng-public2 \
+    --node-type t3.micro \   # ✅ Free Tier eligible
+    --nodes 2 \
+    --nodes-min 2 \
+    --nodes-max 2 \
+    --node-volume-size 20 \
+    --ssh-access \
+    --ssh-public-key nayapay-1 \
+    --managed \
+    --asg-access \
+    --external-dns-access \
+    --full-ecr-access \
+    --appmesh-access \
+    --alb-ingress-access \
+    --tags "Project=FlaskApp,Owner=DevOps,Environment=Test"

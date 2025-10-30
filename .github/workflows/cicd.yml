@@ -1,80 +1,61 @@
-name: CI/CD — Build, Push to Docker Hub & Deploy to K8s
+name: CI/CD — Build, Push to ECR & Deploy to K8s
 
 on:
   push:
     branches: [ master ]
 
-# Global environment variables (non-sensitive)
 env:
-  IMAGE_NAME: flask-demo
+  IMAGE_NAME: flaskapp-nayapay-1
   K8S_NAMESPACE: eks-demo-app
   DEPLOYMENT_NAME: eks-demo-app
   CONTAINER_NAME: eks-demo-app
   DOCKERFILE_PATH: ./docker/Dockerfile
-  AWS_REGION: us-east-1  # adjust if your EKS is in another region
-
-permissions:
-  contents: read
+  AWS_REGION: us-east-1
+  ECR_URI: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1
 
 jobs:
-  test-and-build:
-    name: 🧪 Test, Build & Push Docker Image
+  test-build-deploy:
     runs-on: ubuntu-latest
-    environment: prod   # 👈 this enables access to your Environment secrets
-    outputs:
-      IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
-
     steps:
+      # 1️⃣ Checkout code
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python 3.11
+      # 2️⃣ Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - name: 📦 Install dependencies & run tests
+      # 3️⃣ Install dependencies and run tests
+      - name: 🧪 Install dependencies & run tests
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install -r app/requirements.txt pytest
           pytest -q
 
-      - name: 🔐 Log in to Docker Hub
-        uses: docker/login-action@v3
+      # 4️⃣ Login to AWS ECR
+      - name: 🔐 Login to AWS ECR
+        uses: aws-actions/amazon-ecr-login@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          region: ${{ env.AWS_REGION }}
 
-      - name: 🏷️ Generate Docker image tag
-        id: image-tag
+      # 5️⃣ Build, tag, and push Docker image
+      - name: 🏗️ Build, tag, and push Docker image to ECR
         run: |
-          DATE_TAG=$(date +%Y%m%d)
-          SHORT_SHA=${GITHUB_SHA::7}
-          TAG="${DATE_TAG}-${SHORT_SHA}"
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          # Generate dynamic tag
+          TAG=$(date +%Y%m%d)-${GITHUB_SHA::7}
+          IMAGE="${{ env.ECR_URI }}:${TAG}"
 
-      - name: 🐳 Build and Push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ${{ env.DOCKERFILE_PATH }}
-          push: true
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-          cache-to: type=inline
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.image-tag.outputs.tag }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          # Build and push
+          docker build -f ${{ env.DOCKERFILE_PATH }} -t $IMAGE .
+          docker push $IMAGE
 
-  deploy:
-    name: 🚀 Deploy to EKS / Kubernetes
-    runs-on: ubuntu-latest
-    environment: prod   # 👈 add this too to access AWS & Docker secrets
-    needs: test-and-build
+          # Save image info for later steps
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> $GITHUB_ENV
 
-    steps:
-      - name: 🧾 Checkout code
-        uses: actions/checkout@v4
-
+      # 6️⃣ Configure AWS credentials
       - name: ☁️ Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -82,26 +63,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: 🔧 Update kubeconfig for EKS
-        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name shahab-eks-cluster
+      # 7️⃣ Update kubeconfig
+      - name: ⚙️ Update kubeconfig
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name flask-eks-test-1
 
+      # 8️⃣ Ensure namespace exists
       - name: 🧱 Ensure namespace exists
         run: |
           kubectl get ns ${{ env.K8S_NAMESPACE }} || kubectl create ns ${{ env.K8S_NAMESPACE }}
 
-      - name: 🚀 Deploy Docker image
+      # 9️⃣ Apply all Kubernetes manifests dynamically
+      - name: 📦 Apply all Kubernetes manifests
         run: |
-          IMAGE_TAG="${{ needs.test-and-build.outputs.IMAGE_TAG }}"
-          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
-          echo "Deploying image: $IMAGE"
-          kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/${{ env.DEPLOYMENT_NAME }} \
-            ${{ env.CONTAINER_NAME }}=$IMAGE --record
+          kubectl apply -f k8s/
 
-      - name: 🔍 Verify rollout
+      # 🔟 Update deployment image dynamically
+      - name: 🚀 Update image and rollout
         run: |
+          kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/${{ env.DEPLOYMENT_NAME }} \
+            ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${{ env.TAG }} --record
           kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s
 
-      - name: 📊 Show Deployment Info
-        run: |
-          kubectl -n ${{ env.K8S_NAMESPACE }} get deployment ${{ env.DEPLOYMENT_NAME }} -o wide
-          kubectl -n ${{ env.K8S_NAMESPACE }} get pods -o wide
+      # 1️⃣1️⃣ Verify deployment
+      - name: 📊 Verify Deployment
+        run: kubectl -n ${{ env.K8S_NAMESPACE }} get all -o wide

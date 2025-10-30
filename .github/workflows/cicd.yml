@@ -27,12 +27,7 @@ jobs:
         with:
           python-version: "3.11"
 
-          # 4. TEST AWS credentials
-      - name: Test AWS credentials
-        run: aws sts get-caller-identity
-
-
-      # 3. Configure AWS credentials FIRST
+      # 3. Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -40,7 +35,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 4. TEST AWS credentials
+      # 4. Test AWS credentials
       - name: Test AWS credentials
         run: aws sts get-caller-identity
 
@@ -55,7 +50,7 @@ jobs:
       - name: Login to AWS ECR
         run: |
           aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
-            docker login --username AWS --password-stdin ${{ env.ECR_URI }}
+          docker login --username AWS --password-stdin ${{ env.ECR_URI }}
 
       # 7. Build, tag, and push Docker image
       - name: Build, tag, and push Docker image
@@ -76,7 +71,7 @@ jobs:
         run: |
           kubectl get ns ${{ env.K8S_NAMESPACE }} || kubectl create ns ${{ env.K8S_NAMESPACE }}
 
-      # 10. Apply all Kubernetes manifests dynamically
+      # 10. Apply all Kubernetes manifests
       - name: Apply all Kubernetes manifests
         run: kubectl apply -f k8s/
 
@@ -84,7 +79,7 @@ jobs:
       - name: Update deployment image with new tag
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/${{ env.DEPLOYMENT_NAME }} \
-            ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${{ env.TAG }} --record
+          ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${{ env.TAG }} --record
           kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s
 
       # 12. Verify deployment

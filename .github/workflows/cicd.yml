@@ -1,4 +1,4 @@
-name: CI/CD — Build, Push to ECR & Deploy to K8s
+name: CI/CD - Build, Push to ECR & Deploy to EKS
 
 on:
   push:
@@ -14,27 +14,27 @@ env:
   ECR_URI: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1
 
 jobs:
-  build-deploy:
+  build-test-deploy:
     runs-on: ubuntu-latest
     steps:
       # 1. Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Set up Python
-      - name: Set up Python
+      # 2. Setup Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      # 3. Install dependencies & run tests
-      - name: Install dependencies & run tests
+      # 3. Install dependencies and run tests
+      - name: Install dependencies and run tests
         run: |
           pip install --upgrade pip
           pip install -r app/requirements.txt pytest
           pytest -q
 
-      # 4. Configure AWS credentials (required for ECR & EKS)
+      # 4. Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -42,11 +42,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 5. Login to AWS ECR (uses configured credentials)
+      # 5. Login to AWS ECR
       - name: Login to AWS ECR
-        uses: aws-actions/amazon-ecr-login@v2
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+            docker login --username AWS --password-stdin ${{ env.ECR_URI }}
 
-      # 6. Build, tag, and push Docker image to ECR
+      # 6. Build, tag, and push Docker image
       - name: Build, tag, and push Docker image
         run: |
           TAG=$(date +%Y%m%d)-${GITHUB_SHA::7}
@@ -56,11 +58,12 @@ jobs:
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
           echo "TAG=$TAG" >> $GITHUB_ENV
 
-      # 7. Update kubeconfig
+      # 7. Update kubeconfig for EKS
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name flask-eks-test-1
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name flask-eks-test-1
 
-      # 8. Ensure namespace exists
+      # 8. Ensure Kubernetes namespace exists
       - name: Ensure namespace exists
         run: |
           kubectl get ns ${{ env.K8S_NAMESPACE }} || kubectl create ns ${{ env.K8S_NAMESPACE }}
@@ -68,16 +71,16 @@ jobs:
       # 9. Apply all Kubernetes manifests dynamically
       - name: Apply all Kubernetes manifests
         run: |
-          echo "Applying all YAML files in k8s/ folder..."
           kubectl apply -f k8s/
 
       # 10. Update deployment image dynamically
-      - name: Update deployment image and rollout
+      - name: Update deployment image with new tag
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/${{ env.DEPLOYMENT_NAME }} \
             ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${{ env.TAG }} --record
           kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=300s
 
       # 11. Verify deployment
-      - name: Verify Deployment
-        run: kubectl -n ${{ env.K8S_NAMESPACE }} get all -o wide
+      - name: Verify deployment
+        run: |
+          kubectl -n ${{ env.K8S_NAMESPACE }} get all -o wide

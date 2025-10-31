@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:{{TAG}}
+          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:latest
           ports:
             - containerPort: 5000
           envFrom:
@@ -27,11 +27,11 @@ spec:
                 name: flask-secrets
           resources:
             requests:
+              memory: "16Mi"
+              cpu: "10m"
+            limits:
               memory: "32Mi"
               cpu: "25m"
-            limits:
-              memory: "64Mi"
-              cpu: "50m"
           livenessProbe:
             httpGet:
               path: /health

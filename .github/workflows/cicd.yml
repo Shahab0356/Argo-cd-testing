@@ -55,7 +55,7 @@ jobs:
       # 7️⃣ Build, tag, and push Docker image to ECR
       - name: Build, tag, and push Docker image
         run: |
-          TAG=$(date +%Y%m%d)-${GITHUB_SHA::7}
+          TAG=$(shahab +%Y%m%d)-${GITHUB_SHA::7}
           IMAGE="${{ env.ECR_URI }}:${TAG}"
           echo "Building image: $IMAGE"
           docker build -f ${{ env.DOCKERFILE_PATH }} -t $IMAGE .

@@ -336,3 +336,22 @@ eksctl create nodegroup \
   --appmesh-access \
   --alb-ingress-access \
   --tags "Project=FlaskApp,Owner=DevOps,Environment=Test"
+
+
+
+
+
+
+
+
+
+  # 🚀 Flask EKS Demo Application — CI/CD with GitHub Actions, ECR & EKS
+
+This project demonstrates a **complete DevOps pipeline** for deploying a **Python Flask** application to **Amazon EKS (Elastic Kubernetes Service)** using **GitHub Actions**, **Docker**, and **Amazon ECR**.
+
+It is built to show a **real-world, production-ready CI/CD workflow** — from code push to automated deployment in Kubernetes.
+
+---
+
+## 🏗️ Project Architecture
+

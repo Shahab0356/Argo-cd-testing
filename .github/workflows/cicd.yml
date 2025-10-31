@@ -58,26 +58,20 @@ jobs:
 
       - name: Update kubeconfig for EKS
         run: |
-          aws eks update-kubeconfig \
-            --region ${{ env.AWS_REGION }} \
-            --name ${{ env.CLUSTER_NAME }}
-
-      - name: Ensure namespace exists
-        run: |
-          kubectl get ns ${{ env.K8S_NAMESPACE }} || \
-          kubectl create ns ${{ env.K8S_NAMESPACE }}
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.CLUSTER_NAME }}
 
       - name: Apply Kubernetes manifests
         run: |
+          # Apply namespace first
+          kubectl apply -f k8s/namespace.yaml
+          # Apply all resources
           kubectl apply -f k8s/
 
-      - name: Update deployment image dynamically
+      - name: Deploy/update image dynamically
         run: |
-          kubectl -n ${{ env.K8S_NAMESPACE }} set image \
-            deployment/${{ env.DEPLOYMENT_NAME }} \
+          kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/${{ env.DEPLOYMENT_NAME }} \
             ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${{ env.TAG }}
-          kubectl -n ${{ env.K8S_NAMESPACE }} rollout status \
-            deployment/${{ env.DEPLOYMENT_NAME }} --timeout=600s
+          kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=600s
 
       - name: Verify deployment
         run: kubectl -n ${{ env.K8S_NAMESPACE }} get all -o wide

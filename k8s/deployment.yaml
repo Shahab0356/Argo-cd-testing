@@ -6,7 +6,7 @@ metadata:
   labels:
     app: eks-demo-app
 spec:
-  replicas: 1  # ✅ Onlyy one pod for free tier capacity
+  replicas: 1
   selector:
     matchLabels:
       app: eks-demo-app
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:latest
+          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:{{TAG}}
           ports:
             - containerPort: 5000
           envFrom:
@@ -27,11 +27,11 @@ spec:
                 name: flask-secrets
           resources:
             requests:
-              memory: "64Mi"     # ✅ Reduced for t3.micro
-              cpu: "50m"
+              memory: "32Mi"
+              cpu: "25m"
             limits:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: "64Mi"
+              cpu: "50m"
           livenessProbe:
             httpGet:
               path: /health
@@ -45,4 +45,4 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
       imagePullSecrets:
-        - name: regcred  # Only needed if ECR is private
+        - name: regcred

@@ -6,7 +6,7 @@ metadata:
   labels:
     app: eks-demo-app
 spec:
-  replicas: 1  # ✅ Only one pod for free tier capacity
+  replicas: 1  # ✅ Onlyy one pod for free tier capacity
   selector:
     matchLabels:
       app: eks-demo-app

@@ -60,6 +60,9 @@ jobs:
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.CLUSTER_NAME }}
 
+      - name: Wait for node to be ready
+        run: kubectl wait --for=condition=Ready node --all --timeout=300s
+
       - name: Apply Kubernetes manifests
         run: |
           # Apply namespace first

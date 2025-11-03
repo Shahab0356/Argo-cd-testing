@@ -323,9 +323,9 @@ eksctl create nodegroup \
   --region us-east-1 \
   --name eksdemo1-ng-public2 \
   --node-type t3.micro \
-  --nodes 2 \
-  --nodes-min 2 \
-  --nodes-max 2 \
+  --nodes 1 \
+  --nodes-min 1 \
+  --nodes-max  \
   --node-volume-size 20 \
   --ssh-access \
   --ssh-public-key nayapay-1 \

@@ -355,3 +355,26 @@ It is built to show a **real-world, production-ready CI/CD workflow** — from c
 
 ## 🏗️ Project Architecture
 
+
+
+Node group:
+
+
+eksctl create nodegroup \
+  --cluster flask-eks-test-1 \
+  --region us-east-1 \
+  --name eksdemo1-ng-public2 \
+  --node-type t3.micro \
+  --nodes 1 \
+  --nodes-min 1 \
+  --nodes-max 2 \
+  --node-volume-size 20 \
+  --ssh-access \
+  --ssh-public-key nayapay-1 \
+  --managed \
+  --asg-access \
+  --external-dns-access \
+  --full-ecr-access \
+  --appmesh-access \
+  --alb-ingress-access \
+  --tags "Project=FlaskApp,Owner=DevOps,Environment=Test"

@@ -1,6 +1,6 @@
 from flask import render_template, jsonify
 import os, datetime
-from . import app
+from app import app
 
 @app.route('/')
 def home():

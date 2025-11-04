@@ -44,9 +44,9 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build, tag, and push Docker image
+        id: docker_build
         run: |
-          TAG="shahab-$(date +%Y%m%d)-${GITHUB_SHA}"
-          TAG=$(echo $TAG | cut -c1-19)
+          TAG="shahab-$(date +%Y%m%d)-${GITHUB_SHA::7}"
           IMAGE="${{ env.ECR_URI }}:${TAG}"
           docker build -f ${{ env.DOCKERFILE_PATH }} -t $IMAGE .
           docker push $IMAGE
@@ -58,16 +58,22 @@ jobs:
 
       - name: Ensure namespace exists
         run: |
-          kubectl get namespace ${{ env.K8S_NAMESPACE }} || kubectl create namespace ${{ env.K8S_NAMESPACE }}
+          if ! kubectl get namespace ${{ env.K8S_NAMESPACE }}; then
+            kubectl create namespace ${{ env.K8S_NAMESPACE }}
+          fi
 
       - name: Apply Kubernetes manifests
         run: |
+          kubectl apply -f k8s/namespace.yaml || true
           kubectl apply -f k8s/ -n ${{ env.K8S_NAMESPACE }}
 
       - name: Update deployment image
+        env:
+          TAG: ${{ env.TAG }}
         run: |
+          echo "Updating deployment image to: ${{ env.ECR_URI }}:${TAG}"
           kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/${{ env.DEPLOYMENT_NAME }} \
-          ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${{ env.TAG }}
+          ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${TAG}
 
       - name: Wait for rollout
         run: |

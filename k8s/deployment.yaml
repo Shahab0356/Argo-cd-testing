@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          image: 556152725477.dkr.ecr.us-east-2.amazonaws.com/flaskapp-nayapay-1:latest
+          image: 556152725477.dkr.ecr.us-east-2.amazonaws.com/flaskapp-nayapay-1:${DEPLOYMENT_TAG}
           ports:
             - containerPort: 5000
           envFrom:

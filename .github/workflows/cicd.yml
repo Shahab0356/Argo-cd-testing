@@ -57,7 +57,7 @@ jobs:
         run: |
           TAG="shahab-$(date +%Y%m%d)-${GITHUB_SHA::7}"
           IMAGE="${{ env.ECR_URI }}:${TAG}"
-          echo "Building and pushing image: $IMAGE"
+          echo "🛠️ Building and pushing image: $IMAGE"
           docker build -f ${{ env.DOCKERFILE_PATH }} -t $IMAGE .
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
@@ -69,38 +69,44 @@ jobs:
 
       # --- Step 9: Wait for EKS nodes to be ready ---
       - name: Wait for EKS nodes to be ready
-        run: kubectl wait --for=condition=Ready node --all --timeout=300s
+        run: |
+          echo "🧠 Waiting for all nodes to be Ready..."
+          kubectl wait --for=condition=Ready node --all --timeout=300s || kubectl get nodes -o wide
 
       # --- Step 10: Ensure namespace and apply manifests ---
       - name: Ensure namespace and apply Kubernetes manifests
         run: |
           echo "📦 Checking namespace..."
           if ! kubectl get namespace "${{ env.K8S_NAMESPACE }}" >/dev/null 2>&1; then
-            echo "Namespace does not exist. Creating it..."
+            echo "🆕 Namespace does not exist. Creating it..."
             kubectl create namespace "${{ env.K8S_NAMESPACE }}"
           else
-            echo "Namespace already exists."
+            echo "✅ Namespace already exists."
           fi
-          
-          echo "📄 Applying manifests..."
+
+          echo "📄 Applying all manifests from k8s/..."
           kubectl apply -f k8s/
 
       # --- Step 11: Deploy and verify rollout ---
       - name: Deploy and verify rollout
         run: |
-          echo "🚀 Updating deployment with latest image..."
+          echo "🚀 Updating deployment with latest image tag..."
           kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/${{ env.DEPLOYMENT_NAME }} \
-            ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${{ env.TAG }} || true
+            ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${{ env.TAG }}
 
-          echo "⏳ Waiting for rollout to complete..."
+          echo "⏳ Waiting for deployment rollout..."
           for i in {1..5}; do
             kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=180s && break
-            echo "Retrying rollout... ($i/5)"
-            sleep 10
+            echo "⚠️ Rollout not complete yet, retrying... ($i/5)"
+            sleep 15
           done
+
+          echo "✅ Rollout process finished."
 
       # --- Step 12: Verify deployed resources ---
       - name: Verify deployment
         run: |
           echo "🔍 Checking deployed resources..."
           kubectl -n ${{ env.K8S_NAMESPACE }} get all -o wide
+          echo "📋 Deployment details:"
+          kubectl -n ${{ env.K8S_NAMESPACE }} describe deployment/${{ env.DEPLOYMENT_NAME }}

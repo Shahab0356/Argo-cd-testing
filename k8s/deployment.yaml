@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          # Image will be dynamically updated by GitHub Actions using kubectl set image
-          image: 556152725477.dkr.ecr.us-east-2.amazonaws.com/flaskapp-nayapay-1:latest
+          # Base image repo (tag will be dynamically set by GitHub Actions)
+          image: 556152725477.dkr.ecr.us-east-2.amazonaws.com/flaskapp-nayapay-1
           ports:
             - containerPort: 5000
           envFrom:

@@ -1,53 +1,3 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>EKS Demo Application</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f0f2f5; margin: 0; }
-    .container { max-width: 800px; margin: auto; padding: 20px; }
-    .header, .footer { text-align: center; }
-    .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>🚀 EKS Demo Application</h1>
-      <p>Deployment: {{ deployment_tag }}</p>
-    </div>
-
-    <div class="card">
-      <h2>Application Status</h2>
-      <p id="health-status">Checking...</p>
-      <p id="api-info">Loading...</p>
-      <p id="timestamp">-</p>
-      <button class="btn" onclick="refreshStatus()">Refresh Status</button>
-    </div>
-
-    <div class="footer">
-      <p>&copy; 2024 EKS Application by shahab khan</p>
-    </div>
-  </div>
-
-  <script>
-    function refreshStatus() {
-      fetch('/health').then(r=>r.json()).then(data=>{
-        document.getElementById('health-status').textContent = data.status;
-        document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
-      }).catch(err=>document.getElementById('health-status').textContent='Error');
-      fetch('/api/info').then(r=>r.json()).then(data=>{
-        document.getElementById('api-info').textContent = data.application;
-      }).catch(err=>document.getElementById('api-info').textContent='Error');
-    }
-    document.addEventListener('DOMContentLoaded', refreshStatus);
-  </script>
-</body>
-</html> -->
-
-
 
 
 <!DOCTYPE html>
@@ -145,7 +95,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>🚀 EKS Demo Application</h1>
+      <h1>🚀 MR shahab khan EKS Application</h1>
       <p>Deployment Tag: <strong>{{ deployment_tag }}</strong></p>
     </div>
 

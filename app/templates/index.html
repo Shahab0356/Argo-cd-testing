@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -42,6 +42,151 @@
         document.getElementById('api-info').textContent = data.application;
       }).catch(err=>document.getElementById('api-info').textContent='Error');
     }
+    document.addEventListener('DOMContentLoaded', refreshStatus);
+  </script>
+</body>
+</html> -->
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🚀 EKS Demo Application</title>
+  <style>
+    /* Reset */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f0f2f5, #d9e2ef);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .header {
+      margin-bottom: 30px;
+      animation: fadeIn 1s ease forwards;
+    }
+
+    .header h1 {
+      font-size: 2.5em;
+      color: #007bff;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 1.2em;
+      color: #333;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      margin-bottom: 20px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      transition: transform 0.3s;
+    }
+
+    .card:hover { transform: translateY(-5px); }
+
+    .card h2 {
+      margin-bottom: 15px;
+      color: #007bff;
+    }
+
+    .card p {
+      font-size: 1.1em;
+      margin: 5px 0;
+    }
+
+    .btn {
+      padding: 12px 25px;
+      margin-top: 15px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background 0.3s;
+    }
+
+    .btn:hover { background: #0056b3; }
+
+    .footer {
+      margin-top: 40px;
+      color: #555;
+      font-size: 0.9em;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+
+    .status-up { color: green; font-weight: bold; }
+    .status-down { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 EKS Demo Application</h1>
+      <p>Deployment Tag: <strong>{{ deployment_tag }}</strong></p>
+    </div>
+
+    <div class="card">
+      <h2>Application Health</h2>
+      <p>Status: <span id="health-status">Checking...</span></p>
+      <p>API Info: <span id="api-info">Loading...</span></p>
+      <p>Last Checked: <span id="timestamp">-</span></p>
+      <button class="btn" onclick="refreshStatus()">Refresh Status</button>
+    </div>
+
+    <div class="footer">
+      <p>&copy; 2024 EKS Application by Shahab Khan</p>
+      <p>Powered by AWS EKS & CI/CD Pipeline 🚀</p>
+    </div>
+  </div>
+
+  <script>
+    async function refreshStatus() {
+      try {
+        const healthResp = await fetch('/health');
+        const healthData = await healthResp.json();
+        const statusElem = document.getElementById('health-status');
+        statusElem.textContent = healthData.status;
+        statusElem.className = healthData.status.toLowerCase() === 'ok' ? 'status-up' : 'status-down';
+        document.getElementById('timestamp').textContent = new Date(healthData.timestamp).toLocaleString();
+      } catch (err) {
+        const statusElem = document.getElementById('health-status');
+        statusElem.textContent = 'Error';
+        statusElem.className = 'status-down';
+      }
+
+      try {
+        const apiResp = await fetch('/api/info');
+        const apiData = await apiResp.json();
+        document.getElementById('api-info').textContent = apiData.application;
+      } catch (err) {
+        document.getElementById('api-info').textContent = 'Error';
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', refreshStatus);
   </script>
 </body>

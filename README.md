@@ -1,3 +1,164 @@
+# Step 1: Create EKS Control Plane
+##############################################
+eksctl create cluster \
+  --name shahab-eks-10 \
+  --region us-east-2 \
+  --version 1.32 \
+  --vpc-nat-mode Single \
+  --without-nodegroup \
+  --tags "Project=ShahabEKS10,Owner=ShahabKhan,Environment=DevTest"
+
+##############################################
+# Step 2: Associate IAM OIDC Provider
+##############################################
+eksctl utils associate-iam-oidc-provider \
+  --cluster shahab-eks-10 \
+  --region us-east-2 \
+  --approve
+
+##############################################
+# Step 3: Create Managed Node Group
+##############################################
+eksctl create nodegroup \
+  --cluster shahab-eks-10 \
+  --region us-east-2 \
+  --name shahab-ng-public \
+  --node-type t3.small \
+  --nodes 1 \
+  --nodes-min 1 \
+  --nodes-max 1 \
+  --node-volume-size 20 \
+  --ssh-access \
+  --ssh-public-key nayapay-1 \
+  --managed \
+  --enable-ssm \
+  --full-ecr-access \
+  --alb-ingress-access \
+  --tags "Project=ShahabEKS10,Owner=ShahabKhan,Environment=DevTest"
+
+##############################################
+# Notes:
+# 1. This will create an EKS control plane in us-east-2.
+# 2. A managed node group is created with t3.small nodes.
+# 3. SSH key 'nayapay-1' must exist in your AWS account.
+# 4. Full ECR and ALB access are enabled for this node group.
+# 5. All resources are tagged for easy tracking.
+##############################################
+
+
+
+
+
+
+
+1. Cluster Information & Status
+# Check EKS cluster status
+aws eks describe-cluster --name shahab-eks-10 --region us-east-2 --query "cluster.status"
+
+# View cluster details (endpoint, VPC, security groups, etc.)
+aws eks describe-cluster --name shahab-eks-10 --region us-east-2
+
+# List node groups
+aws eks list-nodegroups --cluster-name shahab-eks-10 --region us-east-2
+
+# Describe node group details
+aws eks describe-nodegroup --cluster-name shahab-eks-10 --nodegroup-name shahab-ng-public --region us-east-2
+
+🖥️ 2. Node & Worker Verification
+# View all nodes and their status
+kubectl get nodes -o wide
+
+# Describe a specific node (replace with your node name)
+kubectl describe node <node-name>
+
+# List EC2 instances in this EKS cluster (useful for debugging nodegroup)
+aws ec2 describe-instances \
+  --filters "Name=tag:eksctl.cluster.k8s.io/v1alpha1/cluster-name,Values=shahab-eks-10" \
+  --region us-east-2 \
+  --query "Reservations[].Instances[].{State:State.Name,Type:InstanceType,AZ:Placement.AvailabilityZone}"
+
+⚙️ 3. Core Kubernetes System Health
+# View all system pods (should all be Running)
+kubectl get pods -n kube-system -o wide
+
+# Describe a specific system pod (for troubleshooting)
+kubectl describe pod <pod-name> -n kube-system
+
+# Check all DaemonSets (aws-node, kube-proxy, etc.)
+kubectl get daemonset -n kube-system
+
+# Check all Deployments (CoreDNS, metrics-server, etc.)
+kubectl get deployment -n kube-system
+
+# Check all services in the cluster
+kubectl get svc -A
+
+# DNS resolution test inside cluster
+kubectl run net-test --image=busybox:1.28 --restart=Never -it -- nslookup kubernetes.default
+
+🧱 4. Namespace & Application Level
+# List all namespaces
+kubectl get ns
+
+# Describe the target namespace
+kubectl describe ns eks-demo-app || echo "Namespace not found"
+
+# Once CI/CD runs, check app resources
+kubectl get all -n eks-demo-app -o wide
+
+# Check logs of application pod
+kubectl logs -n eks-demo-app <pod-name>
+
+# Verify rollout status after deployment
+kubectl -n eks-demo-app rollout status deployment/eks-demo-app --timeout=180s
+
+🧰 5. Storage & Networking
+# Check storage classes
+kubectl get storageclass
+
+# List Persistent Volumes
+kubectl get pv
+
+# List Persistent Volume Claims (in your namespace)
+kubectl get pvc -n eks-demo-app
+
+# Describe the cluster’s subnets
+aws eks describe-cluster \
+  --name shahab-eks-10 \
+  --region us-east-2 \
+  --query "cluster.resourcesVpcConfig.subnetIds"
+
+# Verify your OIDC provider (for service account IAM roles)
+aws eks describe-cluster --name shahab-eks-10 --region us-east-2 --query "cluster.identity.oidc.issuer"
+
+🔒 6. IAM Role & Access Checks
+# Get NodeGroup IAM role
+aws eks describe-nodegroup \
+  --cluster-name shahab-eks-10 \
+  --nodegroup-name shahab-ng-public \
+  --region us-east-2 \
+  --query "nodegroup.nodeRole" \
+  --output text
+
+# List policies attached to that node role
+aws iam list-attached-role-policies \
+  --role-name eksctl-shahab-eks-10-nodegroup-sha-NodeInstanceRole-4Y87hWbEAI2S \
+  --query "AttachedPolicies[].PolicyName"
+
+🧪 7. Test Pods (Optional Sanity Checks)
+# Run a temporary test pod
+kubectl run ecr-test --image=amazonlinux --restart=Never -it -- bash
+
+# Test internet connectivity
+kubectl run curl-test --image=curlimages/curl:8.6.0 -it --rm -- curl -I https://google.com
+
+📦 8. Cleanup (If Needed)
+# Delete test pods
+kubectl delete pod ecr-test net-test --force --grace-period=0
+
+# Delete app namespace (for redeployment)
+kubectl delete ns eks-demo-app
+
 # 🧠 EKS + Flask + ALB + Monitoring Stack
 
 This project deploys a Flask application to an AWS EKS cluster, exposes it via an ALB Ingress, and sets up full observability using Prometheus, Grafana, and Blackbox Exporter. Ideal for modular cloud-native deployments with built-in monitoring and alerting.
@@ -304,152 +465,3 @@ Step	Action	Command Summary
 
 
 
-
-IN ONE SHOT 
-# Step 1: Create EKS Control Plane
-eksctl create cluster \
-  --name shahab-eks-10 \
-  --region us-east-1 \
-  --version 1.32 \
-  --vpc-nat-mode Single \
-  --without-nodegroup \
-  --tags "Project=ShahabEKS10,Owner=ShahabKhan,Environment=DevTest"
-
-# Step 2: Associate IAM OIDC Provider
-eksctl utils associate-iam-oidc-provider \
-  --cluster shahab-eks-10 \
-  --region us-east-1 \
-  --approve
-
-# Step 3: Create Managed Node Group
-eksctl create nodegroup \
-  --cluster shahab-eks-10 \
-  --region us-east-2 \
-  --name shahab-ng-public \
-  --node-type t3.small \
-  --nodes 1 \
-  --nodes-min 1 \
-  --nodes-max 1 \
-  --node-volume-size 20 \
-  --ssh-access \
-  --ssh-public-key nayapay-1 \
-  --managed \
-  --enable-ssm \
-  --full-ecr-access \
-  --alb-ingress-access \
-  --tags "Project=ShahabEKS10,Owner=ShahabKhan,Environment=DevTest"
-
-
-
-
-
-
-
-
-1. Cluster Information & Status
-# Check EKS cluster status
-aws eks describe-cluster --name shahab-eks-10 --region us-east-2 --query "cluster.status"
-
-# View cluster details (endpoint, VPC, security groups, etc.)
-aws eks describe-cluster --name shahab-eks-10 --region us-east-2
-
-# List node groups
-aws eks list-nodegroups --cluster-name shahab-eks-10 --region us-east-2
-
-# Describe node group details
-aws eks describe-nodegroup --cluster-name shahab-eks-10 --nodegroup-name shahab-ng-public --region us-east-2
-
-🖥️ 2. Node & Worker Verification
-# View all nodes and their status
-kubectl get nodes -o wide
-
-# Describe a specific node (replace with your node name)
-kubectl describe node <node-name>
-
-# List EC2 instances in this EKS cluster (useful for debugging nodegroup)
-aws ec2 describe-instances \
-  --filters "Name=tag:eksctl.cluster.k8s.io/v1alpha1/cluster-name,Values=shahab-eks-10" \
-  --region us-east-2 \
-  --query "Reservations[].Instances[].{State:State.Name,Type:InstanceType,AZ:Placement.AvailabilityZone}"
-
-⚙️ 3. Core Kubernetes System Health
-# View all system pods (should all be Running)
-kubectl get pods -n kube-system -o wide
-
-# Describe a specific system pod (for troubleshooting)
-kubectl describe pod <pod-name> -n kube-system
-
-# Check all DaemonSets (aws-node, kube-proxy, etc.)
-kubectl get daemonset -n kube-system
-
-# Check all Deployments (CoreDNS, metrics-server, etc.)
-kubectl get deployment -n kube-system
-
-# Check all services in the cluster
-kubectl get svc -A
-
-# DNS resolution test inside cluster
-kubectl run net-test --image=busybox:1.28 --restart=Never -it -- nslookup kubernetes.default
-
-🧱 4. Namespace & Application Level
-# List all namespaces
-kubectl get ns
-
-# Describe the target namespace
-kubectl describe ns eks-demo-app || echo "Namespace not found"
-
-# Once CI/CD runs, check app resources
-kubectl get all -n eks-demo-app -o wide
-
-# Check logs of application pod
-kubectl logs -n eks-demo-app <pod-name>
-
-# Verify rollout status after deployment
-kubectl -n eks-demo-app rollout status deployment/eks-demo-app --timeout=180s
-
-🧰 5. Storage & Networking
-# Check storage classes
-kubectl get storageclass
-
-# List Persistent Volumes
-kubectl get pv
-
-# List Persistent Volume Claims (in your namespace)
-kubectl get pvc -n eks-demo-app
-
-# Describe the cluster’s subnets
-aws eks describe-cluster \
-  --name shahab-eks-10 \
-  --region us-east-2 \
-  --query "cluster.resourcesVpcConfig.subnetIds"
-
-# Verify your OIDC provider (for service account IAM roles)
-aws eks describe-cluster --name shahab-eks-10 --region us-east-2 --query "cluster.identity.oidc.issuer"
-
-🔒 6. IAM Role & Access Checks
-# Get NodeGroup IAM role
-aws eks describe-nodegroup \
-  --cluster-name shahab-eks-10 \
-  --nodegroup-name shahab-ng-public \
-  --region us-east-2 \
-  --query "nodegroup.nodeRole" \
-  --output text
-
-# List policies attached to that node role
-aws iam list-attached-role-policies \
-  --role-name eksctl-shahab-eks-10-nodegroup-sha-NodeInstanceRole-4Y87hWbEAI2S \
-  --query "AttachedPolicies[].PolicyName"
-
-🧪 7. Test Pods (Optional Sanity Checks)
-# Run a temporary test pod
-kubectl run ecr-test --image=amazonlinux --restart=Never -it -- bash
-
-# Test internet connectivity
-kubectl run curl-test --image=curlimages/curl:8.6.0 -it --rm -- curl -I https://google.com
-
-📦 8. Cleanup (If Needed)
-# Delete test pods
-kubectl delete pod ecr-test net-test --force --grace-period=0
-
-# Delete app namespace (for redeployment)
-kubectl delete ns eks-demo-app

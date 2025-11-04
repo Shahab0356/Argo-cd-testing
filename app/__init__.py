@@ -1,5 +1,9 @@
 from flask import Flask
 
-app = Flask(__name__, template_folder="templates", static_folder="static")
+def create_app():
+    app = Flask(__name__, template_folder="templates", static_folder="static")
 
-from app import views  # import routes AFTER app is created
+    from app.views import bp
+    app.register_blueprint(bp)
+
+    return app

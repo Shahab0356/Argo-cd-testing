@@ -5,91 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EKS Demo Application</title>
   <style>
-    /* (your existing styles kept) */
-    /* ... copy the CSS you provided unchanged ... */
+    body { font-family: Arial, sans-serif; background: #f0f2f5; margin: 0; }
+    .container { max-width: 800px; margin: auto; padding: 20px; }
+    .header, .footer { text-align: center; }
+    .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <h1>🚀 EKS Demo Application</h1>
-      <p>Successfully deployed to Amazon EKS cluster via CI/CD pipeline</p>
-      <p><small>Deployment: {{ deployment_tag }}</small></p>
-    </div>
-
-    <!-- rest of your HTML body -->
-    <!-- Keep the same markup and script you provided -->
-    <div class="card">
-      <h2>About This Application</h2>
-      <p>This is a demo Flask application that demonstrates a complete CI/CD pipeline deployment to Amazon EKS. The application is containerized with Docker, pushed to Amazon ECR, and deployed using Kubernetes manifests.</p>
-      <p>The deployment process includes:</p>
-      <ul style="margin-left: 20px; line-height: 1.8;">
-        <li>GitHub Actions workflow automation</li>
-        <li>Docker image building and tagging</li>
-        <li>Amazon ECR image push</li>
-        <li>Kubernetes deployment updates</li>
-        <li>EKS cluster management</li>
-      </ul>
+      <p>Deployment: {{ deployment_tag }}</p>
     </div>
 
     <div class="card">
       <h2>Application Status</h2>
-      <div class="status-grid">
-        <div class="status-item">
-          <h3>🏥 Health Check</h3>
-          <p id="health-status">Checking...</p>
-        </div>
-        <div class="status-item">
-          <h3>📊 API Info</h3>
-          <p id="api-info">Loading...</p>
-        </div>
-        <div class="status-item">
-          <h3>⏰ Timestamp</h3>
-          <p id="timestamp">-</p>
-        </div>
-      </div>
-      <div style="text-align: center; margin-top: 20px;">
-        <button class="btn" onclick="refreshStatus()">Refresh Status</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Technology Stack</h2>
-      <p><strong>Backend:</strong> Python Flask</p>
-      <p><strong>Container:</strong> Docker</p>
-      <p><strong>Registry:</strong> Amazon ECR</p>
-      <p><strong>Orchestration:</strong> Kubernetes (EKS)</p>
-      <p><strong>CI/CD:</strong> GitHub Actions</p>
-      <p><strong>Infrastructure:</strong> AWS EKS</p>
+      <p id="health-status">Checking...</p>
+      <p id="api-info">Loading...</p>
+      <p id="timestamp">-</p>
+      <button class="btn" onclick="refreshStatus()">Refresh Status</button>
     </div>
 
     <div class="footer">
-      <p>&copy; 2024 EKS Demo Application | Built by MR-Shahab khan for Kubernetes</p>
+      <p>&copy; 2024 EKS Demo Application</p>
     </div>
   </div>
 
   <script>
     function refreshStatus() {
-      fetch('/health')
-        .then(response => response.json())
-        .then(data => {
-          document.getElementById('health-status').textContent = data.status;
-          document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
-        })
-        .catch(error => {
-          document.getElementById('health-status').textContent = 'Error: ' + error.message;
-        });
-
-      fetch('/api/info')
-        .then(response => response.json())
-        .then(data => {
-          document.getElementById('api-info').textContent = data.application;
-        })
-        .catch(error => {
-          document.getElementById('api-info').textContent = 'Error: ' + error.message;
-        });
+      fetch('/health').then(r=>r.json()).then(data=>{
+        document.getElementById('health-status').textContent = data.status;
+        document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
+      }).catch(err=>document.getElementById('health-status').textContent='Error');
+      fetch('/api/info').then(r=>r.json()).then(data=>{
+        document.getElementById('api-info').textContent = data.application;
+      }).catch(err=>document.getElementById('api-info').textContent='Error');
     }
-
     document.addEventListener('DOMContentLoaded', refreshStatus);
   </script>
 </body>

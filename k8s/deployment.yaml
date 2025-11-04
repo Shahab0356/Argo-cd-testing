@@ -3,8 +3,6 @@ kind: Deployment
 metadata:
   name: eks-demo-app
   namespace: eks-demo-app
-  labels:
-    app: eks-demo-app
 spec:
   replicas: 2
   selector:
@@ -17,8 +15,7 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          # Base image repo (tag will be dynamically set by GitHub Actions)
-          image: 556152725477.dkr.ecr.us-east-2.amazonaws.com/flaskapp-nayapay-1
+          image: 556152725477.dkr.ecr.us-east-2.amazonaws.com/flaskapp-nayapay-1:latest
           ports:
             - containerPort: 5000
           envFrom:
@@ -40,7 +37,6 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 3
-            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /health
@@ -48,4 +44,3 @@ spec:
             initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 3
-            failureThreshold: 3

@@ -1,13 +1,15 @@
-from flask import render_template, jsonify
-import os, datetime
-from app import app
+from flask import Blueprint, render_template, jsonify
+import os
+import datetime
 
-@app.route('/')
+bp = Blueprint('main', __name__)
+
+@bp.route('/')
 def home():
     deployment_tag = os.getenv('DEPLOYMENT_TAG', 'latest')
     return render_template('index.html', deployment_tag=deployment_tag)
 
-@app.route('/health')
+@bp.route('/health')
 def health():
     return jsonify({
         'status': 'healthy',
@@ -16,7 +18,7 @@ def health():
         'environment': os.getenv('ENVIRONMENT', 'development')
     })
 
-@app.route('/api/info')
+@bp.route('/api/info')
 def info():
     return jsonify({
         'application': 'EKS Demo App',

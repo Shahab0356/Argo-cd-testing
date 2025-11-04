@@ -6,4 +6,4 @@ metadata:
 data:
   ENVIRONMENT: "production"
   APP_VERSION: "1.0.0"
-  DEPLOYMENT_TAG: "latest" # will be overridden by GitHub Actions deployment step
+  DEPLOYMENT_TAG: "latest"

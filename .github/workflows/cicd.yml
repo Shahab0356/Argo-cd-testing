@@ -19,17 +19,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # --- Step 1: Checkout source code ---
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- Step 2: Setup Python environment ---
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      # --- Step 3: Configure AWS credentials ---
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -37,76 +34,41 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # --- Step 4: Verify AWS identity ---
-      - name: Verify AWS identity
-        run: aws sts get-caller-identity
-
-      # --- Step 5: Install dependencies and run tests ---
       - name: Install dependencies and run tests
         run: |
           pip install --upgrade pip
           pip install -r app/requirements.txt pytest
           pytest -q || echo "⚠️ Tests failed but continuing deployment."
 
-      # --- Step 6: Login to Amazon ECR ---
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      # --- Step 7: Build, tag, and push Docker image ---
       - name: Build, tag, and push Docker image
         run: |
-          TAG="shahab-$(date +%Y%m%d)-${GITHUB_SHA::7}"
-          IMAGE="${{ env.ECR_URI }}:${TAG}"
-          echo "🛠️ Building and pushing image: $IMAGE"
-          docker build -f ${{ env.DOCKERFILE_PATH }} -t $IMAGE .
-          docker push $IMAGE
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-          echo "TAG=$TAG" >> $GITHUB_ENV
+          TAG="shahab-$(date +%Y%m%d)-${GITHUB_SHA::7}"  # generate short unique tag
+          IMAGE="${ECR_URI}:${TAG}"
+          docker build -f ${DOCKERFILE_PATH} -t ${IMAGE} .
+          docker push ${IMAGE}
+          echo "IMAGE=${IMAGE}" >> $GITHUB_ENV
+          echo "TAG=${TAG}" >> $GITHUB_ENV
 
-      # --- Step 8: Update kubeconfig to access EKS ---
       - name: Update kubeconfig for EKS
         run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.CLUSTER_NAME }}
 
-      # --- Step 9: Wait for EKS nodes to be ready ---
-      - name: Wait for EKS nodes to be ready
+      - name: Ensure namespace exists
         run: |
-          echo "🧠 Waiting for all nodes to be Ready..."
-          kubectl wait --for=condition=Ready node --all --timeout=300s || kubectl get nodes -o wide
+          kubectl get namespace ${{ env.K8S_NAMESPACE }} || kubectl create namespace ${{ env.K8S_NAMESPACE }}
 
-      # --- Step 10: Ensure namespace and apply manifests ---
-      - name: Ensure namespace and apply Kubernetes manifests
+      - name: Apply Kubernetes manifests
         run: |
-          echo "📦 Checking namespace..."
-          if ! kubectl get namespace "${{ env.K8S_NAMESPACE }}" >/dev/null 2>&1; then
-            echo "🆕 Namespace does not exist. Creating it..."
-            kubectl create namespace "${{ env.K8S_NAMESPACE }}"
-          else
-            echo "✅ Namespace already exists."
-          fi
-
-          echo "📄 Applying all manifests from k8s/..."
           kubectl apply -f k8s/
-
-      # --- Step 11: Deploy and verify rollout ---
-      - name: Deploy and verify rollout
-        run: |
-          echo "🚀 Updating deployment with latest image tag..."
           kubectl -n ${{ env.K8S_NAMESPACE }} set image deployment/${{ env.DEPLOYMENT_NAME }} \
-            ${{ env.CONTAINER_NAME }}=${{ env.ECR_URI }}:${{ env.TAG }}
+            ${{ env.CONTAINER_NAME }}=${ECR_URI}:${TAG}
 
-          echo "⏳ Waiting for deployment rollout..."
-          for i in {1..5}; do
-            kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=180s && break
-            echo "⚠️ Rollout not complete yet, retrying... ($i/5)"
-            sleep 15
-          done
+      - name: Wait for rollout
+        run: |
+          kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=180s
 
-          echo "✅ Rollout process finished."
-
-      # --- Step 12: Verify deployed resources ---
       - name: Verify deployment
         run: |
-          echo "🔍 Checking deployed resources..."
           kubectl -n ${{ env.K8S_NAMESPACE }} get all -o wide
-          echo "📋 Deployment details:"
-          kubectl -n ${{ env.K8S_NAMESPACE }} describe deployment/${{ env.DEPLOYMENT_NAME }}

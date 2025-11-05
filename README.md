@@ -1,24 +1,27 @@
-# Step 1: Create EKS Control Plane
 ##############################################
+# 🚀 One-Shot EKS Cluster + Node Group Setup
+# Cluster Name: shahab-eks-10
+# Region: us-east-2
+# Version: 1.32
+# Owner: Shahab Khan
+##############################################
+
+# Step 1: Create EKS Control Plane
 eksctl create cluster \
   --name shahab-eks-10 \
   --region us-east-2 \
   --version 1.32 \
   --vpc-nat-mode Single \
   --without-nodegroup \
-  --tags "Project=ShahabEKS10,Owner=ShahabKhan,Environment=DevTest"
+  --tags "Project=ShahabEKS10,Owner=ShahabKhan,Environment=DevTest" && \
 
-##############################################
 # Step 2: Associate IAM OIDC Provider
-##############################################
 eksctl utils associate-iam-oidc-provider \
   --cluster shahab-eks-10 \
   --region us-east-2 \
-  --approve
+  --approve && \
 
-##############################################
 # Step 3: Create Managed Node Group
-##############################################
 eksctl create nodegroup \
   --cluster shahab-eks-10 \
   --region us-east-2 \
@@ -31,20 +34,20 @@ eksctl create nodegroup \
   --ssh-access \
   --ssh-public-key nayapay-1 \
   --managed \
-  --enable-ssm \
   --full-ecr-access \
-  --alb-ingress-access \
   --tags "Project=ShahabEKS10,Owner=ShahabKhan,Environment=DevTest"
 
 ##############################################
-# Notes:
-# 1. This will create an EKS control plane in us-east-2.
-# 2. A managed node group is created with t3.small nodes.
-# 3. SSH key 'nayapay-1' must exist in your AWS account.
-# 4. Full ECR and ALB access are enabled for this node group.
-# 5. All resources are tagged for easy tracking.
+# ✅ Notes:
+# - Creates EKS cluster (v1.32) in us-east-2
+# - Adds single-node t3.small managed node group
+# - SSH key “nayapay-1” must exist in EC2 key pairs
+# - OIDC configured for IRSA support
+# - ECR & SSM access are enabled by default in eksctl ≥ 0.210.0
 ##############################################
 
+# Example: update an addon later if needed
+# eksctl update addon --name vpc-cni --cluster shahab-eks-10 --region us-east-2
 
 
 

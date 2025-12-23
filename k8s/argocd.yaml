@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eks-demo-app
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Shahab0356/Argo-cd-testing.git
+    targetRevision: master
+    path: k8s
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: eks-demo-app
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

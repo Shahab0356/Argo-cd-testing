@@ -51,6 +51,8 @@ jobs:
           # Apply deployment & service
           kubectl apply -f k8s/deployment.yaml -n ${{ env.K8S_NAMESPACE }}
           kubectl apply -f k8s/service.yaml -n ${{ env.K8S_NAMESPACE }}
+          # Apply ingress for external access
+          kubectl apply -f k8s/ingress.yaml -n ${{ env.K8S_NAMESPACE }}
 
       - name: Update deployment image to latest
         run: |
@@ -61,6 +63,7 @@ jobs:
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} rollout status deployment/${{ env.DEPLOYMENT_NAME }} --timeout=180s
 
-      - name: Verify deployment
+      - name: Verify deployment and get ingress IP
         run: |
           kubectl -n ${{ env.K8S_NAMESPACE }} get all -o wide
+          kubectl -n ${{ env.K8S_NAMESPACE }} get ingress

@@ -4,7 +4,7 @@ metadata:
   name: eks-demo-app
   namespace: eks-demo-app
 spec:
-  replicas: 2  # safer rolling updates
+  replicas: 2  # safe rolling updates
   selector:
     matchLabels:
       app: eks-demo-app
@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          # This will be replaced dynamically by CI/CD
+          # Placeholder to be replaced dynamically by CI/CD
           image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:PLACEHOLDER
           imagePullPolicy: Always
           ports:

@@ -4,10 +4,10 @@ metadata:
   name: eks-demo-app
   namespace: eks-demo-app
 spec:
-  type: LoadBalancer
+  type: ClusterIP       # Changed from LoadBalancer
   selector:
     app: eks-demo-app
   ports:
-    - port: 80
-      targetPort: 5000
+    - port: 80          # Cluster-internal port
+      targetPort: 5000  # Container port
       protocol: TCP

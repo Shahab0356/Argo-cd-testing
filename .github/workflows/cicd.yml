@@ -12,7 +12,7 @@ env:
   K8S_NAMESPACE: eks-demo-app
   DEPLOYMENT_NAME: eks-demo-app
   CONTAINER_NAME: eks-demo-app
-  ARGOCD_APP_NAME: eks-demo-app  # ArgoCD Application name
+  ARGOCD_APP_NAME: eks-demo-app
   ARGOCD_NAMESPACE: argocd
 
 jobs:
@@ -57,7 +57,7 @@ jobs:
           kubectl apply -f k8s/ingress.yaml -n $K8S_NAMESPACE
           kubectl apply -f k8s/deployment.yaml -n $K8S_NAMESPACE
 
-          # Replace placeholder with the built image
+          # Replace placeholder image dynamically
           kubectl -n $K8S_NAMESPACE set image deployment/$DEPLOYMENT_NAME \
             $CONTAINER_NAME=$ECR_URI:$IMAGE_TAG --record
 
@@ -71,8 +71,8 @@ jobs:
           echo "Applying ArgoCD application manifest..."
           kubectl apply -f k8s/argocd.yaml -n $ARGOCD_NAMESPACE
 
-      - name: Sync ArgoCD Application
+      - name: Sync ArgoCD Application via CLI Pod
         run: |
           echo "Triggering ArgoCD sync for app: $ARGOCD_APP_NAME"
-          kubectl -n $ARGOCD_NAMESPACE exec deploy/argocd-server -- \
-            argocd app sync $ARGOCD_APP_NAME --grpc-web
+          ARGOCD_POD=$(kubectl get pods -n $ARGOCD_NAMESPACE -l app.kubernetes.io/name=argocd-server -o jsonpath="{.items[0].metadata.name}")
+          kubectl -n $ARGOCD_NAMESPACE exec $ARGOCD_POD -- argocd app sync $ARGOCD_APP_NAME --grpc-web

@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          # Placeholder to be replaced dynamically by CI/CD
+          # This will be replaced dynamically by CI/CD
           image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:PLACEHOLDER
           imagePullPolicy: Always
           ports:

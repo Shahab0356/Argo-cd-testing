@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:PLACEHOLDER
+          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 5000

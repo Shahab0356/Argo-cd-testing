@@ -8,11 +8,10 @@ env:
   AWS_REGION: us-east-1
   ECR_URI: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1
   CLUSTER_NAME: shahab-eks-5
-  K8S_NAMESPACE: eks-demo-app
   ARGOCD_NAMESPACE: argocd
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,25 +30,14 @@ jobs:
 
       - name: Build & Push Docker Image
         run: |
-          docker build -t $ECR_URI:latest -f docker/Dockerfile .
-          docker push $ECR_URI:latest
+          IMAGE_TAG=${GITHUB_SHA::7}
+          docker build -t $ECR_URI:$IMAGE_TAG -f docker/Dockerfile .
+          docker push $ECR_URI:$IMAGE_TAG
+          echo "IMAGE_TAG=$IMAGE_TAG"
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
 
-      - name: Ensure namespaces exist
-        run: |
-          kubectl get ns $K8S_NAMESPACE || kubectl create ns $K8S_NAMESPACE
-          kubectl get ns $ARGOCD_NAMESPACE || kubectl create ns $ARGOCD_NAMESPACE
-
-      - name: Bootstrap Kubernetes manifests
-        run: |
-          kubectl apply -f k8s/namespace.yaml || true
-          kubectl apply -f k8s/configmap.yaml -n $K8S_NAMESPACE
-          kubectl apply -f k8s/secret.yaml -n $K8S_NAMESPACE
-          kubectl apply -f k8s/service.yaml -n $K8S_NAMESPACE
-          kubectl apply -f k8s/ingress.yaml -n $K8S_NAMESPACE
-
-      - name: Apply ArgoCD Application
+      - name: Bootstrap ArgoCD Application
         run: |
           kubectl apply -f k8s/argocd.yaml -n $ARGOCD_NAMESPACE

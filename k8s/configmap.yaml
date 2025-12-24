@@ -6,4 +6,3 @@ metadata:
 data:
   ENVIRONMENT: "production"
   APP_VERSION: "1.0.0"
-  DEPLOYMENT_TAG: "latest"

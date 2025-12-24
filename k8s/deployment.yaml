@@ -3,8 +3,6 @@ kind: Deployment
 metadata:
   name: eks-demo-app
   namespace: eks-demo-app
-  annotations:
-    argocd.argoproj.io/sync-options: Replace=true
 spec:
   replicas: 2
   selector:

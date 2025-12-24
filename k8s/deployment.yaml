@@ -43,8 +43,11 @@ spec:
               path: /health
               port: 5000
             initialDelaySeconds: 40
+            periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /health
               port: 5000
             initialDelaySeconds: 25
+            periodSeconds: 10
+            timeoutSeconds: 5

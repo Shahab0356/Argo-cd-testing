@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:latest
+          image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:IMAGE_TAG
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
@@ -29,23 +29,3 @@ spec:
                 name: flask-config
             - secretRef:
                 name: flask-secrets
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-            limits:
-              cpu: "250m"
-              memory: "256Mi"
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 5000
-            initialDelaySeconds: 40
-            periodSeconds: 15
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 5000
-            initialDelaySeconds: 25
-            periodSeconds: 10
-            timeoutSeconds: 5

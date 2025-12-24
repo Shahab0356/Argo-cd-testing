@@ -4,7 +4,7 @@ metadata:
   name: eks-demo-app
   namespace: eks-demo-app
 spec:
-  replicas: 2  # safe rolling updates
+  replicas: 2
   selector:
     matchLabels:
       app: eks-demo-app
@@ -20,7 +20,6 @@ spec:
     spec:
       containers:
         - name: eks-demo-app
-          # This will be replaced dynamically by CI/CD
           image: 556152725477.dkr.ecr.us-east-1.amazonaws.com/flaskapp-nayapay-1:PLACEHOLDER
           imagePullPolicy: Always
           ports:
@@ -32,22 +31,21 @@ spec:
                 name: flask-secrets
           resources:
             requests:
-              memory: "128Mi"
               cpu: "100m"
+              memory: "128Mi"
             limits:
-              memory: "256Mi"
               cpu: "250m"
+              memory: "256Mi"
           livenessProbe:
             httpGet:
               path: /health
               port: 5000
-            initialDelaySeconds: 30
+            initialDelaySeconds: 40
             periodSeconds: 15
-            timeoutSeconds: 3
           readinessProbe:
             httpGet:
               path: /health
               port: 5000
-            initialDelaySeconds: 15
+            initialDelaySeconds: 25
             periodSeconds: 10
-            timeoutSeconds: 3
+            timeoutSeconds: 5
